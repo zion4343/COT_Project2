@@ -13,25 +13,14 @@ Output: output.txt : the file that include the minumim alignment score, the init
 #include <vector>
 #include <string>
 #include <numeric>
+#include <algorithm>
 
 using namespace std;
 
 #define MAX_ROW 100 //MAX ROW
 #define MAX_COLUMN 100 //MAX COLUMN
 
-/*
-Class
-*/
-//The class used to store the result of MemoAlign
-class Sentinel{
-    int sentinel = 0; //if the value is not 0, the bool value is updated
-    bool result = false; // The result of MemoAlign
-
-    public:
-        void updateResult(bool newValue){sentinel = 1; result = newValue;}
-        int returnSentinel(){return sentinel;}
-        bool returnResult(){return result;}
-};
+#define MAX_VALUE 10000 //MAX VALUE
 
 /*
 Shared Variable
@@ -44,11 +33,12 @@ vector<int> sequence;
 vector<vector<int>> matrix;
 
 //The variables for output
-int minAlignScore, initRow, initColumn;
+int minAlignScore = MAX_VALUE;
+int initRow, initColumn;
 vector<char> optimumAlign;
 
 //The data container that store the list of adjacent elements
-vector<vector<vector<Sentinel>>> D;
+vector<vector<vector<int>>> D;
 
 //The variable to calcurate minAlign Score
 vector<int> total;
@@ -58,7 +48,7 @@ vector<int> total;
 Pre-defined Functions
 */
 void WrapAlign();
-bool MemoAlign(int row, int column, int current);
+int MemoAlign(int row, int column, int current);
 
 /*
 Main Function
@@ -112,14 +102,10 @@ void WrapAlign(){
     //The 1-D array to store the direction to proceed
     optimumAlign.resize(sequenceLength-1);
     //3-D array to store the result of MemoAlign
-    D.resize(nRow, vector<vector<Sentinel>>(nColumn, vector<Sentinel>(sequenceLength)));
-    //1-D array to calculate minimum absolute difference
-    total.resize(sequenceLength, 0);
+    D.resize(nRow, vector<vector<int>>(nColumn, vector<int>(sequenceLength, -1)));
 
     //Start with 0
-    if(MemoAlign(0, 0, 0) == false){
-        minAlignScore = abs(accumulate(sequence.begin(), sequence.end(), 0) - accumulate(total.begin(), total.end(), 0));
-    }
+    MemoAlign(0, 0, 0);
 
     //write the result into file
     ofstream outFile;
@@ -140,112 +126,103 @@ void WrapAlign(){
 
 //the function to find output elements.
 //the function to find output elements and return them.
-bool MemoAlign(int row, int column, int current){
+int MemoAlign(int row, int column, int current){
     //Base case
     //Check the data structure
-    if(D[row][column][current].returnSentinel() != 0){
-        return D[row][column][current].returnResult();
+    if(D[row][column][current] != -1){
+        return D[row][column][current];
     }
-    //When the current index is the last index of sequence
-    if(current == sequenceLength -1){
-        minAlignScore = 0;
-        total[current] = matrix[row][column];
-        return true;
+    //if the current index is the last index of sequence
+    else if(current == sequenceLength -1){
+        D[row][column][current] = abs(matrix[row][column] - sequence[current]);
+        return D[row][column][current];
     }
-    //When corrent matrix element is not same with the current sequence element. (Used when current = 0)
-    if(matrix[row][column] != sequence[current]){
-        D[row][column][current].updateResult(false);
-        if(row-1 >= 0){
-            if(MemoAlign(row-1, column, current)){return false;}
-        }
-        if(row+1 < nRow){
-            if(MemoAlign(row+1, column, current)){return false;}
-        }
-        if(column-1 >= 0){
-            if(MemoAlign(row, column-1, current)){return false;}
-        }
-        if(column+1 < nColumn){
-            if(MemoAlign(row, column+1, current)){return false;}
-        }
-    }
-    //When correct matrix element is same with the current sequence element
     else{
-        //Check Up
+        //Look for the minimim difference between adjacent elements and next sequence element
+        vector<int> directions(4, MAX_VALUE);
+        //Up
         if(row-1 >= 0){
-            if(matrix[row -1][column] == sequence[current + 1]){
-                if(MemoAlign(row-1, column, current+1)){
-                    if(current == 0){
-                        initRow = row;
-                        initColumn = column;
-                    }
-                    total[current] = matrix[row][column];
-                    optimumAlign[current] = 'U';
-                    D[row][column][current].updateResult(true);
-                    return true;
-                }
-            }
+            directions[0] = abs(matrix[row -1][column] - sequence[current+1]);
         }
-        //Check Down
+        //Down
         if(row+1 < nRow){
-            if(matrix[row +1][column] == sequence[current + 1]){
-                if(MemoAlign(row+1, column, current+1)){
-                    if(current == 0){
-                        initRow = row;
-                        initColumn = column;
-                    }
-                    total[current] = matrix[row][column];
-                    optimumAlign[current] = 'D';
-                    D[row][column][current].updateResult(true);
-                    return true;
-                }
-            }
+            directions[1] = abs(matrix[row+1][column] - sequence[current+1]);
         }
-        //Check Left
+        //Left
         if(column-1 >= 0){
-            if(matrix[row][column -1] == sequence[current + 1]){
-                if(MemoAlign(row, column-1, current+1)){
-                    if(current == 0){
-                        initRow = row;
-                        initColumn = column;
-                    }
-                    total[current] = matrix[row][column];
-                    optimumAlign[current] = 'L';
-                    D[row][column][current].updateResult(true);
-                    return true;
-                }
-            }
+            directions[2] = abs(matrix[row][column-1] - sequence[current+1]);
         }
-        //Check Right
+        //Right
         if(column+1 < nColumn){
-            if(matrix[row][column+1] == sequence[current + 1]){
-                if(MemoAlign(row, column+1, current+1)){
-                    if(current == 0){
-                        initRow = row;
-                        initColumn = column;
-                    }
-                    total[current] = matrix[row][column];
-                    optimumAlign[current] = 'R';
-                    D[row][column][current].updateResult(true);
-                    return true;
-                }
-            }
+            directions[3] = abs(matrix[row][column+1] - sequence[current+1]);
         }
-        //If all direction is false
-        D[row][column][current].updateResult(false);
-        if(row-1 >= 0){
-            if(MemoAlign(row-1, column, 0)){return false;}
-        }
-        if(row+1 < nRow){
-            if(MemoAlign(row+1, column, 0)){return false;}
-        }
-        if(column-1 >= 0){
-            if(MemoAlign(row, column-1, 0)){return false;}
-        }
-        if(column+1 < nColumn){
-            if(MemoAlign(row, column+1, 0)){return false;}
-        }
-        return false;
-    }
 
-    return false;
+        //Compare with minimum difference
+        auto min = std::min_element(directions.begin(), directions.end());
+        vector<int> directionsTotal(4, MAX_VALUE);
+        if(directions[0] == *min){
+            directionsTotal[0] = MemoAlign(row-1, column, current+1);
+        }
+        if(directions[1] == *min){
+            directionsTotal[1] = MemoAlign(row+1, column, current+1);
+        }
+        if(directions[2] == *min){
+            directionsTotal[2] = MemoAlign(row, column-1, current+1);
+        }
+        if(directions[3] == *min){
+            directionsTotal[3] = MemoAlign(row, column+1, current+1);
+        }
+
+        //Set the proceed direction
+        auto minTotal = min_element(directionsTotal.begin(), directionsTotal.end());
+        if(directionsTotal[0] == *minTotal){
+            optimumAlign[current] = 'U';
+        }
+        else if(directionsTotal[1] == *minTotal){
+            optimumAlign[current] = 'D';
+        }
+        else if(directionsTotal[2] == *minTotal){
+            optimumAlign[current] = 'L';
+        }
+        else if(directionsTotal[3] == *minTotal){
+            optimumAlign[current] = 'R';
+        }
+
+        //Set the value in 3D vector
+        D[row][column][current] = *minTotal + abs(matrix[row][column] - sequence[current]);
+        if(current == 0){
+            if(minAlignScore > *minTotal){
+                minAlignScore = D[row][column][current];
+                initRow = row;
+                initColumn = column;
+            }
+            if(minAlignScore != 0){
+                //Up
+                if(row-1 >= 0){
+                    if(MemoAlign(row-1, column, 0) == 0){
+                        return minAlignScore;
+                    }
+                }
+                //Down
+                if(row+1 < nRow){
+                    if(MemoAlign(row+1, column, 0) == 0){
+                        return minAlignScore;
+                    }
+                }
+                //Left
+                if(column-1 >= 0){
+                    if(MemoAlign(row, column-1, 0) == 0){
+                        return minAlignScore;
+                    }
+                }
+                //Right
+                if(column+1 < nColumn){
+                    if(MemoAlign(row, column+1, 0) == 0){
+                        return minAlignScore;
+                    }
+                }
+            }
+        }
+        return D[row][column][current];
+    }
 }

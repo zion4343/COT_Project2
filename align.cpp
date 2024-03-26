@@ -12,6 +12,7 @@ Output: output.txt : the file that include the minumim alignment score, the init
 #include <fstream>
 #include <vector>
 #include <string>
+#include <numeric>
 
 using namespace std;
 
@@ -50,8 +51,7 @@ vector<char> optimumAlign;
 vector<vector<vector<Sentinel>>> D;
 
 //The variable to calcurate minAlign Score
-int traversed = 0;
-int maxScoreInMatrix = 0;
+vector<int> total;
 
 
 /*
@@ -66,7 +66,7 @@ Main Function
 int main(){
     //open input file
     ifstream inputFile;
-    inputFile.open("input.txt");
+    inputFile.open("input2.txt");
     if(!inputFile.is_open()){
         cout << "ERROR ON OPENING FILE";
         return 1;
@@ -113,8 +113,13 @@ void WrapAlign(){
     optimumAlign.resize(sequenceLength-1);
     //3-D array to store the result of MemoAlign
     D.resize(nRow, vector<vector<Sentinel>>(nColumn, vector<Sentinel>(sequenceLength)));
+    //1-D array to calculate minimum absolute difference
+    total.resize(sequenceLength, 0);
 
-    MemoAlign(0, 0, 0); //Start with 0
+    //Start with 0
+    if(MemoAlign(0, 0, 0) == false){
+        minAlignScore = abs(accumulate(sequence.begin(), sequence.end(), 0) - accumulate(total.begin(), total.end(), 0));
+    }
 
     //write the result into file
     ofstream outFile;
@@ -144,25 +149,23 @@ bool MemoAlign(int row, int column, int current){
     //When the current index is the last index of sequence
     if(current == sequenceLength -1){
         minAlignScore = 0;
+        total[current] = matrix[row][column];
         return true;
-    }
-    //count traversed elements
-    if(current == 0){
-        traversed++;
     }
     //When corrent matrix element is not same with the current sequence element. (Used when current = 0)
     if(matrix[row][column] != sequence[current]){
+        D[row][column][current].updateResult(false);
         if(row-1 >= 0){
-            if(MemoAlign(row-1, column, current)){return true;}
+            if(MemoAlign(row-1, column, current)){return false;}
         }
         if(row+1 < nRow){
-            if(MemoAlign(row+1, column, current)){return true;}
+            if(MemoAlign(row+1, column, current)){return false;}
         }
         if(column-1 >= 0){
-            if(MemoAlign(row, column-1, current)){return true;}
+            if(MemoAlign(row, column-1, current)){return false;}
         }
         if(column+1 < nColumn){
-            if(MemoAlign(row, column+1, current)){return true;}
+            if(MemoAlign(row, column+1, current)){return false;}
         }
     }
     //When correct matrix element is same with the current sequence element
@@ -175,6 +178,7 @@ bool MemoAlign(int row, int column, int current){
                         initRow = row;
                         initColumn = column;
                     }
+                    total[current] = matrix[row][column];
                     optimumAlign[current] = 'U';
                     D[row][column][current].updateResult(true);
                     return true;
@@ -189,6 +193,7 @@ bool MemoAlign(int row, int column, int current){
                         initRow = row;
                         initColumn = column;
                     }
+                    total[current] = matrix[row][column];
                     optimumAlign[current] = 'D';
                     D[row][column][current].updateResult(true);
                     return true;
@@ -203,6 +208,7 @@ bool MemoAlign(int row, int column, int current){
                         initRow = row;
                         initColumn = column;
                     }
+                    total[current] = matrix[row][column];
                     optimumAlign[current] = 'L';
                     D[row][column][current].updateResult(true);
                     return true;
@@ -217,6 +223,7 @@ bool MemoAlign(int row, int column, int current){
                         initRow = row;
                         initColumn = column;
                     }
+                    total[current] = matrix[row][column];
                     optimumAlign[current] = 'R';
                     D[row][column][current].updateResult(true);
                     return true;
@@ -225,6 +232,18 @@ bool MemoAlign(int row, int column, int current){
         }
         //If all direction is false
         D[row][column][current].updateResult(false);
+        if(row-1 >= 0){
+            if(MemoAlign(row-1, column, 0)){return false;}
+        }
+        if(row+1 < nRow){
+            if(MemoAlign(row+1, column, 0)){return false;}
+        }
+        if(column-1 >= 0){
+            if(MemoAlign(row, column-1, 0)){return false;}
+        }
+        if(column+1 < nColumn){
+            if(MemoAlign(row, column+1, 0)){return false;}
+        }
         return false;
     }
 

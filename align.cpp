@@ -20,7 +20,7 @@ using namespace std;
 #define MAX_ROW 100 //MAX ROW
 #define MAX_COLUMN 100 //MAX COLUMN
 
-#define MAX_VALUE 10000 //MAX VALUE
+#define MAX_VALUE INT_MAX //MAX VALUE
 
 /*
 Shared Variable
@@ -56,7 +56,7 @@ Main Function
 int main(){
     //open input file
     ifstream inputFile;
-    inputFile.open("input2.txt");
+    inputFile.open("input.txt");
     if(!inputFile.is_open()){
         cout << "ERROR ON OPENING FILE";
         return 1;
